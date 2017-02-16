@@ -53,6 +53,7 @@ static void decrypt(io::BaseByteStream &input_stream, const bstr &key)
 
 static int get_scr_version(io::BaseByteStream &input_stream)
 {
+    if (verify_magic(input_stream, "[SCR-PARAMS]v05.6"_b)) return 56;
     if (verify_magic(input_stream, "[SCR-PARAMS]v05.3"_b)) return 53;
     if (verify_magic(input_stream, "[SCR-PARAMS]v05.2"_b)) return 52;
     if (verify_magic(input_stream, "[SCR-PARAMS]v05.1"_b)) return 51;
@@ -264,6 +265,9 @@ static common::Params parse_params_file_v3_or_later(
     else
     {
         input_stream.skip(4);
+        if (version >= 56) {
+            input_stream.skip(1);
+        }
         for (const auto i : algo::range(3))
             if (input_stream.read<u8>())
                 skip_tree(input_stream);
