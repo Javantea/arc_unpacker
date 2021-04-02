@@ -1,7 +1,8 @@
-cmake_minimum_required (VERSION 2.8.8)
-project (arc_unpacker)
+cmake_minimum_required(VERSION 2.8.8)
+project(arc_unpacker)
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED on)
+set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/src/cmake")
 
 # -------
 # Version
@@ -38,6 +39,10 @@ find_package(OpenSSL REQUIRED)
 include_directories(${OPENSSL_INCLUDE_DIR})
 link_directories(${OPENSSL_LIBRARY_DIRS})
 
+find_package(WebP)
+include_directories(${WEBP_INCLUDE_DIR})
+link_directories(${WEBP_LIBRARY_DIRS})
+
 # --------------------
 # Global build options
 # --------------------
@@ -72,6 +77,12 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 endif()
 
 add_definitions(-D_FILE_OFFSET_BITS=64) # 64-bit off_t
+
+if(WEBP_FOUND)
+    add_definitions(-DWEBP_FOUND=1)
+else()
+    add_definitions(-DWEBP_FOUND=0)
+endif()
 
 # ------------
 # Source files
@@ -109,7 +120,7 @@ endif()
 if(WIN32)
     list(REMOVE_ITEM au_sources "${CMAKE_SOURCE_DIR}/src/logger_ansi.cc")
     list(REMOVE_ITEM au_sources "${CMAKE_SOURCE_DIR}/src/logger_dummy.cc")
-else(CYGWIN OR UNIX)
+elseif(CYGWIN OR UNIX)
     list(REMOVE_ITEM au_sources "${CMAKE_SOURCE_DIR}/src/logger_win.cc")
     list(REMOVE_ITEM au_sources "${CMAKE_SOURCE_DIR}/src/logger_dummy.cc")
 else()
@@ -123,7 +134,7 @@ macro(group_source_files PARENT_DIR FILES)
         get_filename_component(GROUP "${GROUP}" PATH)
         string(REPLACE "/" "\\" GROUP "${GROUP}")
 
-        if ("${FILE}" MATCHES ".*\\.cc")
+        if("${FILE}" MATCHES ".*\\.cc")
             set(GROUP "Source Files\\${GROUP}")
         elseif("${FILE}" MATCHES ".*\\.h")
             set(GROUP "Header Files\\${GROUP}")
@@ -142,9 +153,9 @@ group_source_files("${CMAKE_SOURCE_DIR}/tests" "${test_sources};${test_headers}"
 
 # Catch
 set(CATCH_PATH "${CMAKE_SOURCE_DIR}/tests/test_support/catch.h")
-if (NOT EXISTS "${CATCH_PATH}")
+if(NOT EXISTS "${CATCH_PATH}")
     message("Downloading Catch...")
-    file(DOWNLOAD "https://raw.githubusercontent.com/philsquared/Catch/master/single_include/catch.hpp" "${CATCH_PATH}")
+    file(DOWNLOAD "https://raw.githubusercontent.com/catchorg/Catch2/master/single_include/catch2/catch.hpp" "${CATCH_PATH}")
 endif()
 
 # -------------------
@@ -161,6 +172,8 @@ if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
     else()
         set(unicode "")
     endif()
+elseif(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+    set(iconv iconv)
 else()
     set(iconv ${ICONV_LIBRARY})
     set(unicode "")
@@ -171,9 +184,15 @@ add_library(libau OBJECT ${au_sources} ${au_headers})
 
 add_executable(arc_unpacker "${CMAKE_SOURCE_DIR}/src/main.cc" $<TARGET_OBJECTS:libau>)
 target_link_libraries(arc_unpacker ${unicode} ${iconv} ${Boost_LIBRARIES} ${ZLIB_LIBRARIES} ${PNG_LIBRARIES} ${JPEG_LIBRARIES} ${OPENSSL_LIBRARIES})
+if(WEBP_FOUND)
+    target_link_libraries(arc_unpacker ${WEBP_LIBRARIES})
+endif()
 
 add_executable(run_tests ${test_sources} ${test_headers} "${CMAKE_SOURCE_DIR}/tests/main.cc" $<TARGET_OBJECTS:libau>)
 target_link_libraries(run_tests ${iconv} ${Boost_LIBRARIES} ${ZLIB_LIBRARIES} ${PNG_LIBRARIES} ${JPEG_LIBRARIES} ${OPENSSL_LIBRARIES})
+if(WEBP_FOUND)
+    target_link_libraries(run_tests ${WEBP_LIBRARIES})
+endif()
 
 target_include_directories(libau BEFORE PUBLIC "${CMAKE_SOURCE_DIR}/src")
 target_include_directories(libau BEFORE PUBLIC "${CMAKE_BINARY_DIR}/generated")

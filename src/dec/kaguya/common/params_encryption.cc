@@ -1,4 +1,21 @@
-﻿#include "dec/kaguya/common/params_encryption.h"
+﻿// Copyright (C) 2016 by rr-
+//
+// This file is part of arc_unpacker.
+//
+// arc_unpacker is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or (at
+// your option) any later version.
+//
+// arc_unpacker is distributed in the hope that it will be useful, but
+// WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+// General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with arc_unpacker. If not, see <http://www.gnu.org/licenses/>.
+
+#include "dec/kaguya/common/params_encryption.h"
 #include "algo/binary.h"
 #include "algo/locale.h"
 #include "algo/range.h"
@@ -6,6 +23,11 @@
 
 using namespace au;
 using namespace au::dec::kaguya;
+
+static bool compare_sjis(const bstr &input1, const bstr &input2)
+{
+    return algo::normalize_sjis(input1) == algo::normalize_sjis(input2);
+}
 
 static bstr read_binary_string(io::BaseByteStream &input_stream)
 {
@@ -129,8 +151,8 @@ static common::Params parse_params_file_v2(io::BaseByteStream &input_stream)
 
     size_t key_size;
 
-    if (game_title == "幼なじみと甘～くエッチに過ごす方法"_b
-        || game_title == "艶女医"_b)
+    if (compare_sjis(game_title, "幼なじみと甘～くエッチに過ごす方法"_b)
+        || compare_sjis(game_title, "艶女医"_b))
     {
         for (const auto i : algo::range(input_stream.read<u8>()))
         {
@@ -148,13 +170,13 @@ static common::Params parse_params_file_v2(io::BaseByteStream &input_stream)
             read_binary_string(input_stream);
 
         key_size = input_stream.read_le<u32>();
-        if (game_title == "幼なじみと甘～くエッチに過ごす方法"_b)
+        if (compare_sjis(game_title, "幼なじみと甘～くエッチに過ごす方法"_b))
             key_size = 240000;
     }
 
-    else if (game_title == "新妻イカせてミルク！"_b
-        || game_title == "毎日がＭ！"_b
-        || game_title == "ちゅぱしてあげる"_b)
+    else if (compare_sjis(game_title, "新妻イカせてミルク！"_b)
+        || compare_sjis(game_title, "毎日がＭ！"_b)
+        || compare_sjis(game_title, "ちゅぱしてあげる"_b))
     {
         for (const auto i : algo::range(input_stream.read<u8>()))
         {

@@ -1,3 +1,20 @@
+// Copyright (C) 2016 by rr-
+//
+// This file is part of arc_unpacker.
+//
+// arc_unpacker is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or (at
+// your option) any later version.
+//
+// arc_unpacker is distributed in the hope that it will be useful, but
+// WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+// General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with arc_unpacker. If not, see <http://www.gnu.org/licenses/>.
+
 #include "dec/qlie/pack_archive_decoder.h"
 #include "algo/binary.h"
 #include "algo/locale.h"
@@ -161,7 +178,7 @@ static bstr decompress(const bstr &input, const size_t output_size)
     {
         throw err::CorruptDataError(
             "Unexpected magic in compressed file. "
-            "Try with --fkey or --gameexe?");
+            "Try with --fkey or --game-exe?");
     }
 
     const bool use_short_size = input_stream.read_le<u32>() > 0;
@@ -275,6 +292,9 @@ PackArchiveDecoder::PackArchiveDecoder()
     add_arg_parser_decorator(
         [](ArgParser &arg_parser)
         {
+            arg_parser.register_flag({"--no-external-keys"})
+                ->set_description("Disables external archive keys");
+
             arg_parser.register_switch({"--fkey"})
                 ->set_value_name("PATH")
                 ->set_description("Selects path to fkey file");
@@ -285,6 +305,8 @@ PackArchiveDecoder::PackArchiveDecoder()
         },
         [&](const ArgParser &arg_parser)
         {
+            use_external_keys = !arg_parser.has_flag("no-external-keys");
+
             if (arg_parser.has_switch("fkey"))
                 fkey_path = arg_parser.get_switch("fkey");
 
@@ -304,42 +326,44 @@ std::unique_ptr<dec::ArchiveMeta> PackArchiveDecoder::read_meta_impl(
 {
     auto meta = std::make_unique<CustomArchiveMeta>();
 
-    if (!fkey_path.empty())
-        meta->key1 = get_fkey(fkey_path);
-    if (!game_exe_path.empty())
-        meta->key2 = get_exe_key(logger, game_exe_path);
-
-    if (meta->key1.empty() || meta->key2.empty())
+    if (use_external_keys)
     {
-        const auto dir = input_file.path.parent().parent();
-        logger.info("Searching for archive keys in %s...\n", dir.c_str());
-        for (const auto &path : io::recursive_directory_range(dir))
+        if (!fkey_path.empty())
+            meta->key1 = get_fkey(fkey_path);
+        if (!game_exe_path.empty())
+            meta->key2 = get_exe_key(logger, game_exe_path);
+
+        if (meta->key1.empty() || meta->key2.empty())
         {
-            if (!io::is_regular_file(path))
-                continue;
-            if (path.has_extension("fkey") && meta->key1.empty())
+            const auto dir = input_file.path.parent().parent();
+            logger.info("Searching for archive keys in %s...\n", dir.c_str());
+            for (const auto &path : io::recursive_directory_range(dir))
             {
-                meta->key1 = get_fkey(path);
-                logger.info("Found fkey in %s\n", path.c_str());
-            }
-            if (path.has_extension("exe") && meta->key2.empty())
-            {
-                try
+                if (!io::is_regular_file(path))
+                    continue;
+                if (path.has_extension("fkey") && meta->key1.empty())
                 {
-                    meta->key2 = get_exe_key(logger, path);
-                    logger.info("Found .exe key in %s\n", path.c_str());
+                    meta->key1 = get_fkey(path);
+                    logger.info("Found fkey in %s\n", path.c_str());
                 }
-                catch (...)
+                if (path.has_extension("exe") && meta->key2.empty())
                 {
+                    try
+                    {
+                        meta->key2 = get_exe_key(logger, path);
+                        logger.info("Found .exe key in %s\n", path.c_str());
+                    }
+                    catch (...)
+                    {
+                    }
                 }
             }
         }
+        if (meta->key1.empty())
+            logger.info("fkey not found\n");
+        if (meta->key2.empty())
+            logger.info(".exe key not found\n");
     }
-
-    if (meta->key1.empty())
-        logger.info("fkey not found\n");
-    if (meta->key2.empty())
-        logger.info(".exe key not found\n");
 
     input_file.stream.seek(get_magic_start(input_file.stream) + magic.size());
     const auto file_count = input_file.stream.read_le<u32>();
@@ -382,13 +406,22 @@ std::unique_ptr<dec::ArchiveMeta> PackArchiveDecoder::read_meta_impl(
         meta->entries.push_back(std::move(entry));
     }
 
-    for (const auto &entry : meta->entries)
+    if (use_external_keys)
     {
-        if (entry->path.name().find("pack_keyfile") != std::string::npos)
+        for (const auto &entry : meta->entries)
         {
-            auto file = read_file(logger, input_file, *meta, *entry);
-            file->stream.seek(0);
-            meta->key1 = file->stream.read_to_eof();
+            if (entry->path.name().find("pack_keyfile") == std::string::npos)
+                continue;
+            try
+            {
+                auto file = read_file(logger, input_file, *meta, *entry);
+                meta->key1 = file->stream.seek(0).read_to_eof();
+            }
+            catch (const std::exception &e)
+            {
+                logger.err(
+                    "Error updating key: " + std::string(e.what()) + "\n");
+            }
         }
     }
 

@@ -1,3 +1,20 @@
+// Copyright (C) 2016 by rr-
+//
+// This file is part of arc_unpacker.
+//
+// arc_unpacker is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or (at
+// your option) any later version.
+//
+// arc_unpacker is distributed in the hope that it will be useful, but
+// WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+// General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with arc_unpacker. If not, see <http://www.gnu.org/licenses/>.
+
 #include "dec/cat_system/int_archive_decoder.h"
 #include "algo/crypt/blowfish.h"
 #include "algo/crypt/mt.h"
@@ -24,6 +41,7 @@ namespace
     struct CustomArchiveMeta final : dec::ArchiveMeta
     {
         bstr file_key;
+        bool encrypted;
     };
 }
 
@@ -154,7 +172,6 @@ std::unique_ptr<dec::ArchiveMeta> IntArchiveDecoder::read_meta_impl(
     const auto resource_keys = get_resource_keys(logger, executable_paths);
     const auto game_id = get_game_id(resource_keys);
 
-    bool encrypted = false;
     const auto table_seed = get_table_seed(game_id);
 
     auto meta = std::make_unique<CustomArchiveMeta>();
@@ -168,7 +185,7 @@ std::unique_ptr<dec::ArchiveMeta> IntArchiveDecoder::read_meta_impl(
             auto mt = algo::crypt::MersenneTwister::Classic(entry_size);
             const auto tmp = mt->next_u32();
             meta->file_key = bstr(reinterpret_cast<const char*>(&tmp), 4);
-            encrypted = true;
+            meta->encrypted = true;
         }
     }
 
@@ -184,7 +201,7 @@ std::unique_ptr<dec::ArchiveMeta> IntArchiveDecoder::read_meta_impl(
             continue;
         }
 
-        if (encrypted)
+        if (meta->encrypted)
         {
             entry->path = algo::trim_to_zero(
                 decrypt_name(name, table_seed + i).str());
@@ -217,9 +234,12 @@ std::unique_ptr<io::File> IntArchiveDecoder::read_file_impl(
 {
     const auto meta = static_cast<const CustomArchiveMeta*>(&m);
     const auto entry = static_cast<const PlainArchiveEntry*>(&e);
-    const algo::crypt::Blowfish bf(meta->file_key);
     auto data = input_file.stream.seek(entry->offset).read(entry->size);
-    bf.decrypt_in_place(data);
+    if (meta->encrypted)
+    {
+        const algo::crypt::Blowfish bf(meta->file_key);
+        bf.decrypt_in_place(data);
+    }
     return std::make_unique<io::File>(entry->path, data);
 }
 

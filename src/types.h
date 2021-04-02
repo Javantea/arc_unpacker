@@ -1,3 +1,20 @@
+// Copyright (C) 2016 by rr-
+//
+// This file is part of arc_unpacker.
+//
+// arc_unpacker is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or (at
+// your option) any later version.
+//
+// arc_unpacker is distributed in the hope that it will be useful, but
+// WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+// General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with arc_unpacker. If not, see <http://www.gnu.org/licenses/>.
+
 #pragma once
 
 #include <string>
@@ -40,8 +57,10 @@ namespace au {
         void reserve(const size_t how_much);
 
         size_t find(const bstr &other) const;
+        size_t find(const bstr &other, const size_t start_pos) const;
         bstr substr(const int start) const;
         bstr substr(const int start, const int size) const;
+        void replace(const int start, const int size, const bstr &what);
 
         template<typename T> T *get()
         {
@@ -104,6 +123,11 @@ namespace au {
     private:
         std::vector<u8> v;
     };
+
+    constexpr size_t operator "" _z(unsigned long long int value)
+    {
+        return value;
+    }
 
     constexpr u8 operator "" _u8(char value)
     {

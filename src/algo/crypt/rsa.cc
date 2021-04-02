@@ -1,8 +1,26 @@
+// Copyright (C) 2016 by rr-
+//
+// This file is part of arc_unpacker.
+//
+// arc_unpacker is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or (at
+// your option) any later version.
+//
+// arc_unpacker is distributed in the hope that it will be useful, but
+// WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+// General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with arc_unpacker. If not, see <http://www.gnu.org/licenses/>.
+
 #include "algo/crypt/rsa.h"
 #include <openssl/bn.h>
 #include <openssl/err.h>
 #include <openssl/evp.h>
 #include <openssl/rsa.h>
+#include <stdexcept>
 #include "err.h"
 
 using namespace au;
@@ -18,19 +36,33 @@ struct Rsa::Priv final
 
 Rsa::Priv::Priv(const RsaKey &key) : key_impl(RSA_new())
 {
+    if (!key_impl)
+        throw std::bad_alloc();
+
     BIGNUM *bn_modulus = BN_new();
+    if (!bn_modulus)
+        throw std::bad_alloc();
+
     BIGNUM *bn_exponent = BN_new();
+    if (!bn_exponent)
+    {
+        BN_free(bn_modulus);
+        throw std::bad_alloc();
+    }
+
     BN_set_word(bn_exponent, key.exponent);
     BN_bin2bn(key.modulus.data(), key.modulus.size(), bn_modulus);
 
-    key_impl->e = bn_exponent;
-    key_impl->n = bn_modulus;
+    #if OPENSSL_VERSION_NUMBER < 0x10100000L
+        key_impl->e = bn_exponent;
+        key_impl->n = bn_modulus;
+    #else
+        RSA_set0_key(key_impl, bn_modulus, bn_exponent, NULL);
+    #endif
 }
 
 Rsa::Priv::~Priv()
 {
-    // BN_free(key_impl->e)?
-    // BN_free(key_impl->n)?
     RSA_free(key_impl);
 }
 

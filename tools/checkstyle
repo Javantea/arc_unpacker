@@ -153,7 +153,9 @@ class WhitespaceAroundBracesCheck(Check):
 class SloppyExceptionsCheck(Check):
     def scan(self, file):
         for i, line in enumerate(file.lines):
-            if 'throw std::' in line and 'logic_error' not in line:
+            if 'throw std::' in line \
+            and 'logic_error' not in line \
+            and 'bad_malloc' not in line:
                 yield Problem(file, 'Use better exceptions', i, line)
 
 class NonFinalObjectsCheck(Check):
@@ -243,6 +245,17 @@ class CommentWhitespaceCheck(Check):
         for i, line in enumerate(file.lines):
             if self.regex.search(line):
                 yield Problem(file, 'Use spaces after //', i, line)
+
+class GplPreambleCheck(Check):
+    def scan(self, file):
+        count = False
+        for line in file.lines:
+            if re.search('Copyright.*rr-', line):
+                count += 1
+        if count == 0:
+            yield Problem(file, 'Missing copyright preamble')
+        if count > 1:
+            yield Problem(file, 'Duplicated copyright preamble')
 
 def main():
     checks = [cls() for cls in Check.__subclasses__()]

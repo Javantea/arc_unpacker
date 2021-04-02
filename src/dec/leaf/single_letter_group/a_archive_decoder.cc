@@ -1,3 +1,20 @@
+// Copyright (C) 2016 by rr-
+//
+// This file is part of arc_unpacker.
+//
+// arc_unpacker is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or (at
+// your option) any later version.
+//
+// arc_unpacker is distributed in the hope that it will be useful, but
+// WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+// General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with arc_unpacker. If not, see <http://www.gnu.org/licenses/>.
+
 #include "dec/leaf/single_letter_group/a_archive_decoder.h"
 #include "algo/locale.h"
 #include "algo/pack/lzss.h"
@@ -77,7 +94,8 @@ std::unique_ptr<dec::ArchiveMeta> AArchiveDecoder::read_meta_impl(
     for (const auto i : algo::range(file_count))
     {
         auto entry = std::make_unique<CustomArchiveEntry>();
-        entry->path = input_file.stream.read_to_zero(23).str();
+        entry->path = algo::sjis_to_utf8(
+            input_file.stream.read_to_zero(23)).str();
         entry->flags = input_file.stream.read<u8>();
         entry->size = input_file.stream.read_le<u32>();
         entry->offset = input_file.stream.read_le<u32>() + offset_to_data;
@@ -121,7 +139,7 @@ std::unique_ptr<io::File> AArchiveDecoder::read_file_impl(
 
 std::vector<std::string> AArchiveDecoder::get_linked_formats() const
 {
-    return {"leaf/w", "leaf/px"};
+    return {"leaf/w", "leaf/g", "leaf/px"};
 }
 
 static auto _ = dec::register_decoder<AArchiveDecoder>("leaf/a");

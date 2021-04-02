@@ -1,3 +1,20 @@
+// Copyright (C) 2016 by rr-
+//
+// This file is part of arc_unpacker.
+//
+// arc_unpacker is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or (at
+// your option) any later version.
+//
+// arc_unpacker is distributed in the hope that it will be useful, but
+// WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+// General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with arc_unpacker. If not, see <http://www.gnu.org/licenses/>.
+
 #include "dec/amuse_craft/pac_archive_decoder.h"
 #include "algo/range.h"
 #include "err.h"
@@ -25,14 +42,7 @@ static int detect_version(io::BaseByteStream &input_stream)
 
     try
     {
-        input_stream.seek(magic.size() + 4);
-        const auto file_count = input_stream.read_le<u32>();
-        input_stream.seek(0x804);
-        input_stream.skip((file_count - 1) * (32 + 8));
-        input_stream.skip(32);
-        const auto last_entry_offset = input_stream.read_le<u32>();
-        const auto last_entry_size = input_stream.read_le<u32>();
-        if (last_entry_offset + last_entry_size == input_stream.size())
+        if (input_stream.seek(0).read(magic.size()) == magic)
             return 2;
     }
     catch (...) {}

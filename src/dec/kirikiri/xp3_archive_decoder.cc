@@ -1,3 +1,20 @@
+// Copyright (C) 2016 by rr-
+//
+// This file is part of arc_unpacker.
+//
+// arc_unpacker is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or (at
+// your option) any later version.
+//
+// arc_unpacker is distributed in the hope that it will be useful, but
+// WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+// General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with arc_unpacker. If not, see <http://www.gnu.org/licenses/>.
+
 #include "dec/kirikiri/xp3_archive_decoder.h"
 #include "algo/locale.h"
 #include "algo/pack/zlib.h"
@@ -53,6 +70,7 @@ namespace
 static const bstr xp3_magic = "XP3\r\n\x20\x0A\x1A\x8B\x67\x01"_b;
 static const bstr hnfn_entry_magic = "hnfn"_b;
 static const bstr file_entry_magic = "File"_b;
+static const bstr elif_entry_magic = "eliF"_b;
 static const bstr info_chunk_magic = "info"_b;
 static const bstr segm_chunk_magic = "segm"_b;
 static const bstr adlr_chunk_magic = "adlr"_b;
@@ -130,6 +148,15 @@ static std::unique_ptr<TimeChunk> read_time_chunk(
 }
 
 static void read_hnfn_entry(
+    io::BaseByteStream &input_stream,
+    std::map<u32, std::string> &fn_map)
+{
+    const auto hash = input_stream.read_le<u32>();
+    const auto name_size = input_stream.read_le<u16>();
+    fn_map[hash] = algo::utf16_to_utf8(input_stream.read(name_size * 2)).str();
+}
+
+static void read_elif_entry(
     io::BaseByteStream &input_stream,
     std::map<u32, std::string> &fn_map)
 {
@@ -226,8 +253,10 @@ std::unique_ptr<dec::ArchiveMeta> Xp3ArchiveDecoder::read_meta_impl(
                 read_file_entry(logger, entry_stream, fn_map));
         else if (entry_magic == hnfn_entry_magic)
             read_hnfn_entry(entry_stream, fn_map);
+        else if (entry_magic == elif_entry_magic)
+            read_elif_entry(entry_stream, fn_map);
         else
-            throw err::NotSupportedError("Unknown entry");
+            throw err::NotSupportedError("Unknown entry: " + entry_magic.str());
     }
     return std::move(meta);
 }

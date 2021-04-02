@@ -1,3 +1,20 @@
+// Copyright (C) 2016 by rr-
+//
+// This file is part of arc_unpacker.
+//
+// arc_unpacker is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or (at
+// your option) any later version.
+//
+// arc_unpacker is distributed in the hope that it will be useful, but
+// WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+// General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with arc_unpacker. If not, see <http://www.gnu.org/licenses/>.
+
 #include "dec/png/png_image_decoder.h"
 #include <map>
 #include "test_support/catch.h"
@@ -54,27 +71,30 @@ TEST_CASE("PNG images with extra chunks", "[dec]")
     SECTION("Default chunk handler")
     {
         REQUIRE_NOTHROW(
+            [&]()
             {
                 Logger dummy_logger;
                 dummy_logger.mute();
                 decoder.decode(dummy_logger, *input_file);
-            });
+            }());
     }
+
     SECTION("Custom chunk handler")
     {
         std::map<std::string, bstr> chunks;
         REQUIRE_NOTHROW(
+            [&]()
             {
                 Logger dummy_logger;
                 dummy_logger.mute();
                 decoder.decode(
                     dummy_logger,
                     *input_file,
-                    [&](const std::string &name, const bstr &data)
-                        {
-                            chunks[name] = data;
-                        });
-            });
+                    [&chunks](const std::string &name, const bstr &data)
+                    {
+                        chunks[name] = data;
+                    });
+            }());
         REQUIRE(chunks.size() == 1);
         REQUIRE(chunks["POSn"] == "\x00\x00\x00\x6C\x00\x00\x00\x60"_b);
     }

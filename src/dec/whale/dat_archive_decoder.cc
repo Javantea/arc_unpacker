@@ -1,3 +1,20 @@
+// Copyright (C) 2016 by rr-
+//
+// This file is part of arc_unpacker.
+//
+// arc_unpacker is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or (at
+// your option) any later version.
+//
+// arc_unpacker is distributed in the hope that it will be useful, but
+// WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+// General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with arc_unpacker. If not, see <http://www.gnu.org/licenses/>.
+
 #include "dec/whale/dat_archive_decoder.h"
 #include <cmath>
 #include <map>
@@ -29,8 +46,12 @@ namespace
     {
         u64 hash;
         TableEntryType type;
-        bool valid;
         bstr path_orig;
+
+        bool name_valid;
+        bool offset_valid;
+        bool size_comp_valid;
+        bool size_orig_valid;
     };
 }
 
@@ -145,7 +166,10 @@ static u32 read_file_count(io::BaseByteStream &input_stream)
     return input_stream.read_le<u32>() ^ file_count_hash;
 }
 
-static void dump(const CustomArchiveMeta &meta, const std::string &dump_path)
+static void dump(
+    const Logger &logger,
+    const CustomArchiveMeta &meta,
+    const std::string &dump_path)
 {
     // make it static, so that ./au *.dat --dump=x doesn't write info only
     // about the last archive
@@ -155,10 +179,22 @@ static void dump(const CustomArchiveMeta &meta, const std::string &dump_path)
     for (const auto &e : meta.entries)
     {
         const auto entry = static_cast<CustomArchiveEntry*>(e.get());
-        if (entry->valid)
+        if (entry->name_valid)
             stream.write(entry->path.str() + "\n");
         else
             stream.write(algo::format("unk:%016llx\n", entry->hash));
+
+        logger.info(
+            "%d 0x%016llxull 0x%08x/%d 0x%08x/%d 0x%08x/%d %s\n",
+            entry->type,
+            entry->hash,
+            entry->offset,
+            entry->offset_valid,
+            entry->size_comp,
+            entry->size_comp_valid,
+            entry->size_orig,
+            entry->size_orig_valid,
+            entry->path.c_str());
     }
 }
 
@@ -238,16 +274,21 @@ std::unique_ptr<dec::ArchiveMeta> DatArchiveDecoder::read_meta_impl(
         entry->size_comp = input_file.stream.read_le<u32>() ^ hash32;
         entry->size_orig = input_file.stream.read_le<u32>() ^ hash32;
 
-        entry->valid = file_names_map.find(entry->hash) != file_names_map.end();
-        const auto name = entry->valid
+        entry->name_valid
+            = file_names_map.find(entry->hash) != file_names_map.end();
+        const auto name = entry->name_valid
             ? file_names_map.at(entry->hash)
             : std::string("");
 
         if (entry->type == TableEntryType::Compressed)
         {
-            entry->valid = true;
-            entry->path_orig
-                = name.empty() ? algo::format("%04d.txt", i) : name;
+            entry->path_orig = entry->name_valid
+                ? name
+                : algo::format("%04d.txt", i);
+            entry->name_valid = true;
+            entry->offset_valid = true;
+            entry->size_comp_valid = true;
+            entry->size_orig_valid = true;
         }
         else if (!name.empty())
         {
@@ -255,15 +296,53 @@ std::unique_ptr<dec::ArchiveMeta> DatArchiveDecoder::read_meta_impl(
             entry->offset ^= name[name.size() >> 1] & 0xFF;
             entry->size_comp ^= name[name.size() >> 2] & 0xFF;
             entry->size_orig ^= name[name.size() >> 3] & 0xFF;
+
+            entry->offset_valid = true;
+            entry->size_comp_valid = true;
+            entry->size_orig_valid = true;
         }
 
         entry->path = algo::sjis_to_utf8(entry->path_orig).str();
         meta->entries.push_back(std::move(entry));
     }
 
+    for (const auto i : algo::range(1, meta->entries.size() - 1))
+    {
+        const auto prev_entry
+            = static_cast<CustomArchiveEntry*>(meta->entries[i-1].get());
+        const auto entry
+            = static_cast<CustomArchiveEntry*>(meta->entries[i].get());
+        const auto next_entry
+            = static_cast<CustomArchiveEntry*>(meta->entries[i+1].get());
+
+        if (!entry->offset_valid
+        && prev_entry->offset_valid
+        && prev_entry->size_comp_valid)
+        {
+            entry->offset = prev_entry->offset + prev_entry->size_comp;
+            entry->offset_valid = true;
+        }
+
+        if (!entry->size_comp_valid
+        && entry->offset_valid
+        && next_entry->offset_valid)
+        {
+            entry->size_comp = next_entry->offset - entry->offset;
+            entry->size_comp_valid = true;
+        }
+
+        if (!entry->size_orig_valid
+        && entry->size_comp_valid
+        && entry->type != TableEntryType::Compressed)
+        {
+            entry->size_orig = entry->size_comp;
+            entry->size_orig_valid = true;
+        }
+    }
+
     if (!dump_path.empty())
     {
-        dump(*meta, dump_path);
+        dump(logger, *meta, dump_path);
         meta->entries.clear();
     }
 
@@ -278,15 +357,32 @@ std::unique_ptr<io::File> DatArchiveDecoder::read_file_impl(
 {
     const auto meta = static_cast<const CustomArchiveMeta*>(&m);
     const auto entry = static_cast<const CustomArchiveEntry*>(&e);
-    if (!entry->valid)
+
+    if (!entry->name_valid && entry->type == TableEntryType::Obfuscated)
     {
         logger.err(
-            "Unknown hash: %016llx. File cannot be unpacked.\n", entry->hash);
+            "Unknown name for file %016llx. File cannot be unpacked.\n",
+            entry->hash);
+        return nullptr;
+    }
+
+    if (!entry->offset_valid)
+    {
+        logger.err(
+            "Unknown offset for file %016llx. File cannot be unpacked.\n",
+            entry->hash);
+        return nullptr;
+    }
+
+    if (!entry->size_comp_valid)
+    {
+        logger.err(
+            "Unknown size for file %016llx. File cannot be unpacked.\n",
+            entry->hash);
         return nullptr;
     }
 
     auto data = input_file.stream.seek(entry->offset).read(entry->size_comp);
-
     if (entry->type == TableEntryType::Compressed)
     {
         transform_script_content(data, entry->hash, game_key);

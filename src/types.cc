@@ -1,3 +1,20 @@
+// Copyright (C) 2016 by rr-
+//
+// This file is part of arc_unpacker.
+//
+// arc_unpacker is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or (at
+// your option) any later version.
+//
+// arc_unpacker is distributed in the hope that it will be useful, but
+// WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+// General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with arc_unpacker. If not, see <http://www.gnu.org/licenses/>.
+
 #include "types.h"
 #include <algorithm>
 
@@ -65,6 +82,16 @@ size_t bstr::find(const bstr &other) const
     return pos - v.begin();
 }
 
+size_t bstr::find(const bstr &other, const size_t start_pos) const
+{
+    const auto pos = std::search(
+        v.begin() + start_pos, v.end(),
+        other.get<u8>(), other.get<u8>() + other.size());
+    if (pos == v.end())
+        return bstr::npos;
+    return pos - v.begin();
+}
+
 bstr bstr::substr(int start) const
 {
     if (start > static_cast<int>(size()))
@@ -82,12 +109,32 @@ bstr bstr::substr(int start, int size) const
         size += v.size();
     while (start < 0)
         start += v.size();
-    if (size > static_cast<int>(v.size())
-    || start + size > static_cast<int>(v.size()))
-    {
+    if (start > static_cast<int>(v.size()))
+        return ""_b;
+    if (start + size > static_cast<int>(v.size()))
         return substr(start, v.size() - start);
-    }
     return bstr(get<const u8>() + start, size);
+}
+
+void bstr::replace(int start, int size, const bstr &what)
+{
+    while (size < 0)
+        size += v.size();
+    while (start < 0)
+        start += v.size();
+    if (start > static_cast<int>(v.size()))
+    {
+        v.insert(v.end(), what.begin(), what.end());
+        return;
+    }
+    if (start + size > static_cast<int>(v.size()))
+    {
+        replace(start, v.size() - start, what);
+        return;
+    }
+    if (size > 0)
+        v.erase(v.begin() + start, v.begin() + start + size);
+    v.insert(v.begin() + start, what.begin(), what.end());
 }
 
 void bstr::resize(const size_t how_much)

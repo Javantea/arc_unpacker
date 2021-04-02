@@ -1,3 +1,20 @@
+﻿// Copyright (C) 2016 by rr-
+//
+// This file is part of arc_unpacker.
+//
+// arc_unpacker is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or (at
+// your option) any later version.
+//
+// arc_unpacker is distributed in the hope that it will be useful, but
+// WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+// General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with arc_unpacker. If not, see <http://www.gnu.org/licenses/>.
+
 #include "algo/locale.h"
 #include <cerrno>
 #include <iconv.h>
@@ -5,6 +22,21 @@
 #include "err.h"
 
 using namespace au;
+
+static bstr replace(const bstr &input, const bstr &from, const bstr &to)
+{
+    bstr output(input);
+    size_t index = 0;
+    while (true)
+    {
+        index = output.find(from, index);
+        if (index == bstr::npos)
+            break;
+        output.replace(index, from.size(), to);
+        index += to.size();
+    }
+    return output;
+}
 
 static bstr convert_locale(
     const bstr &input, const std::string &from, const std::string &to)
@@ -72,4 +104,10 @@ bstr algo::utf8_to_sjis(const bstr &input)
 bstr algo::utf8_to_utf16(const bstr &input)
 {
     return convert_locale(input, "utf-8", "utf-16le");
+}
+
+bstr algo::normalize_sjis(const bstr &utf8_input)
+{
+    // WAVE DASH to FULLWIDTH TILDE
+    return replace(utf8_input, "〜"_b, "～"_b);
 }

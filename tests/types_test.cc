@@ -1,3 +1,20 @@
+// Copyright (C) 2016 by rr-
+//
+// This file is part of arc_unpacker.
+//
+// arc_unpacker is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or (at
+// your option) any later version.
+//
+// arc_unpacker is distributed in the hope that it will be useful, but
+// WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+// General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with arc_unpacker. If not, see <http://www.gnu.org/licenses/>.
+
 #include "types.h"
 #include <limits>
 #include "test_support/catch.h"
@@ -99,7 +116,44 @@ TEST_CASE("bstr", "[core][types]")
         REQUIRE(x.find("y"_b) == bstr::npos);
         REQUIRE(x.find("e"_b) != bstr::npos);
         REQUIRE(x.find("e"_b) == 1);
+        REQUIRE(x.find("e"_b, 1) == 1);
+        REQUIRE(x.find("e"_b, 2) == bstr::npos);
         REQUIRE(x.find("\x00\x01"_b) == 4);
+        REQUIRE(x.find("\x00\x01"_b) == 4);
+    }
+
+    SECTION("Replacing substrings")
+    {
+        SECTION("Inside bounds")
+        {
+            auto x = "test\x00\x01"_b;
+            x.replace(2, 2, "x"_b);
+            REQUIRE(x == "tex\x00\x01"_b);
+        }
+        SECTION("Offset out of bounds")
+        {
+            auto x = "test\x00\x01"_b;
+            x.replace(7, 0, "x"_b);
+            REQUIRE(x == "test\x00\x01x"_b);
+        }
+        SECTION("Size out of bounds")
+        {
+            auto x = "test\x00\x01"_b;
+            x.replace(5, 2, "x"_b);
+            REQUIRE(x == "test\x00x"_b);
+        }
+        SECTION("Negative offset")
+        {
+            auto x = "test\x00\x01"_b;
+            x.replace(-1, 1, "x"_b);
+            REQUIRE(x == "test\x00x"_b);
+        }
+        SECTION("Negative size")
+        {
+            auto x = "test\x00\x01"_b;
+            x.replace(1, -1, "x"_b);
+            REQUIRE(x == "tx"_b);
+        }
     }
 
     SECTION("Extracting substrings")
@@ -113,6 +167,10 @@ TEST_CASE("bstr", "[core][types]")
             REQUIRE(x.substr(1) == "est\x00\x01"_b);
             REQUIRE(x.substr(2) == "st\x00\x01"_b);
             REQUIRE(x.substr(1, 0) == ""_b);
+        }
+        SECTION("Offset out of bounds")
+        {
+            REQUIRE(x.substr(7) == ""_b);
         }
         SECTION("Size out of bounds")
         {

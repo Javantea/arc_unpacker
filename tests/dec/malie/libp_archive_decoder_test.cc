@@ -1,3 +1,20 @@
+// Copyright (C) 2016 by rr-
+//
+// This file is part of arc_unpacker.
+//
+// arc_unpacker is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or (at
+// your option) any later version.
+//
+// arc_unpacker is distributed in the hope that it will be useful, but
+// WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+// General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with arc_unpacker. If not, see <http://www.gnu.org/licenses/>.
+
 #include "dec/malie/libp_archive_decoder.h"
 #include <queue>
 #include "algo/crypt/camellia.h"
@@ -156,23 +173,21 @@ TEST_CASE("Malie LIBP archives", "[dec]")
     SECTION("Encrypted")
     {
         // dies irae key
-        static const auto key
-            = common::convert_decryption_key_to_encryption_key({
-                0x6F388B64, 0xBB5B3676, 0x2317DD18, 0x7CCD3736,
-                0x00000000, 0x00000000, 0x00000000, 0x00000000,
-                0x9B9B379C, 0x45B25DAD, 0x9B3B118B, 0xEE8C3E66,
-                0x00000000, 0x00000000, 0x00000000, 0x00000000,
-                0x00000000, 0x00000000, 0x00000000, 0x00000000,
-                0xFBA30F99, 0xA6E6CDE7, 0x116C976B, 0x66CEC462,
-                0x88C5F746, 0x1F334DCD, 0x00000000, 0x00000000,
-                0x00000000, 0x00000000, 0x00000000, 0x00000000,
-                0x9B3B118B, 0xEE8C3E66, 0x9B9B379C, 0x45B25DAD,
-                0xBB5B3676, 0x2317DD18, 0x7CCD3736, 0x6F388B64,
-                0x00000000, 0x00000000, 0x00000000, 0x00000000,
-                0x16C976B6, 0x6CEC462F, 0xBA30F99A, 0x6E6CDE71,
-                0x00000000, 0x00000000, 0x00000000, 0x00000000,
-            });
-
+        static const std::vector<u32> key = {
+            0x00000000, 0x00000000, 0x00000000, 0x00000000,
+            0x16C976B6, 0x6CEC462F, 0xBA30F99A, 0x6E6CDE71,
+            0x00000000, 0x00000000, 0x00000000, 0x00000000,
+            0xBB5B3676, 0x2317DD18, 0x7CCD3736, 0x6F388B64,
+            0x9B3B118B, 0xEE8C3E66, 0x9B9B379C, 0x45B25DAD,
+            0x00000000, 0x00000000, 0x00000000, 0x00000000,
+            0x88C5F746, 0x1F334DCD, 0x00000000, 0x00000000,
+            0xFBA30F99, 0xA6E6CDE7, 0x116C976B, 0x66CEC462,
+            0x00000000, 0x00000000, 0x00000000, 0x00000000,
+            0x00000000, 0x00000000, 0x00000000, 0x00000000,
+            0x9B9B379C, 0x45B25DAD, 0x9B3B118B, 0xEE8C3E66,
+            0x00000000, 0x00000000, 0x00000000, 0x00000000,
+            0x6F388B64, 0xBB5B3676, 0x2317DD18, 0x7CCD3736,
+        };
 
         LibpArchiveDecoder decoder;
         decoder.plugin_manager.set("dies-irae");

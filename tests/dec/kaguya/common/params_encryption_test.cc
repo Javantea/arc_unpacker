@@ -1,4 +1,21 @@
-﻿#include "dec/kaguya/common/params_encryption.h"
+﻿// Copyright (C) 2016 by rr-
+//
+// This file is part of arc_unpacker.
+//
+// arc_unpacker is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or (at
+// your option) any later version.
+//
+// arc_unpacker is distributed in the hope that it will be useful, but
+// WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+// General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with arc_unpacker. If not, see <http://www.gnu.org/licenses/>.
+
+#include "dec/kaguya/common/params_encryption.h"
 #include <array>
 #include <stack>
 #include "algo/locale.h"
@@ -533,7 +550,9 @@ TEST_CASE("Atelier Kaguya params decryption", "[dec]")
 
         const auto params = parse_params_file(output_stream);
         REQUIRE(params.key == key);
-        REQUIRE(params.game_title == game_title);
+        REQUIRE(
+            algo::normalize_sjis(params.game_title)
+            == algo::normalize_sjis(game_title));
     }
 
     SECTION("Version 2 - variant B")

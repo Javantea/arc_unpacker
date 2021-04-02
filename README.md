@@ -1,14 +1,11 @@
 arc\_unpacker - the visual novel extractor
 ==========================================
 
- [![Build Status](https://travis-ci.org/vn-tools/arc_unpacker.svg?branch=master)](https://travis-ci.org/vn-tools/arc_unpacker)
-
 `arc_unpacker` is a command line tool for extracting images, sounds, music and
 miscellaneous resources from visual novels (and some other Japanese games).
 
 - [**List of supported
   games**](https://rawgit.com/vn-tools/arc_unpacker/master/GAMELIST.htm)
-- [**Nightly builds for Windows**](http://tmp.sakuya.pl/au/)
 - [**Latest stable
   release**](https://github.com/vn-tools/arc_unpacker/releases)
 - [Build instructions for Windows and
@@ -149,13 +146,6 @@ question](#user-content-how-do-i-pass-additional-options--parameters).
   base that might find encoders useful would be extremely small, and writing
   encoders is often much more difficult than writing decoders, so it's not very
   practical.
-
-- ##### What's the license?
-
-  All the code is licensed under
-  [`LICENSE.md`](https://github.com/vn-tools/arc_unpacker/blob/master/LICENSE.md)
-  unless otherwise noted. For acknowledgments, see
-  [`THANKS.md`](https://github.com/vn-tools/arc_unpacker/blob/master/THANKS.md).
 
 ## Contact
 

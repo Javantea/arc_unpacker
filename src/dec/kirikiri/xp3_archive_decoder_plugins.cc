@@ -1,3 +1,20 @@
+// Copyright (C) 2016 by rr-
+//
+// This file is part of arc_unpacker.
+//
+// arc_unpacker is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or (at
+// your option) any later version.
+//
+// arc_unpacker is distributed in the hope that it will be useful, but
+// WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+// General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with arc_unpacker. If not, see <http://www.gnu.org/licenses/>.
+
 #include "dec/kirikiri/xp3_archive_decoder.h"
 #include "algo/ptr.h"
 #include "algo/range.h"
@@ -71,6 +88,22 @@ Xp3ArchiveDecoder::Xp3ArchiveDecoder()
             while (data_ptr.left())
                 *data_ptr++ -= 54 * key;
         }));
+    
+    plugin_manager.add(
+        "moteyaba", "Imouto no Okage de Motesugite Yabai.",
+        create_simple_plugin([](bstr &data, u32 key)
+        {
+            for (const auto i : algo::range(data.size()))
+                data[i] ^= 0xCD ^ key;
+        }));
+
+    plugin_manager.add(
+        "kamiyaba", "Kamidanomi Shisugite Ore no Mirai ga Yabai.",
+        create_simple_plugin([](bstr &data, u32 key)
+        {
+            for (const auto i : algo::range(data.size()))
+                data[i] ^= 0xCD;
+        }));
 
     plugin_manager.add(
         "rebirth", "Re:birth colony ~Lost azurite~",
@@ -132,6 +165,11 @@ Xp3ArchiveDecoder::Xp3ArchiveDecoder()
         create_cxdec_plugin(
             0x190, 0x4A7, {1,0,2}, {2,0,7,3,5,1,4,6}, {2,1,0,5,4,3},
             read_etc_file("karakara.dat")));
+
+    plugin_manager.add(
+        "waremete", "Ushinawareta Mirai o Motomete",
+        create_cxdec_plugin(
+            0x23C, 0x60F, {2,0,1}, {1,5,0,3,2,7,6,4}, {4,5,2,1,0,3}));
 
     add_arg_parser_decorator(
         plugin_manager.create_arg_parser_decorator(
